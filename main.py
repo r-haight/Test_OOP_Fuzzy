@@ -11,7 +11,7 @@ state_min = [-50, -50] # smallest value of the grid [x,y]
 num_of_mf = [19, 19] # breaking up the state space (grid in this case) into 29 membership functions
 action_space = [2.356125, -1.57075, -0.785375, 0, 0.785375, 1.57075, -2.356125]
 
-selection = 1
+selection = 0
 
 if(selection == 0) :
     #FACL TEST
@@ -20,7 +20,7 @@ if(selection == 0) :
     #print out all the rule sets
     print("rules:")
     print(sharon.controller.rules)
-    for i in range(1000):
+    for i in range(500):
         sharon.run_one_epoch()
     print(' total num of successes:')
     print(sharon.success)
