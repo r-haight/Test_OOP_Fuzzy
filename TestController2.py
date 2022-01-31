@@ -16,16 +16,17 @@ class TestController2(FQL):
         FQL.__init__(self, action, max, min, num_mf) #explicit call to the base class constructor
 
     def get_reward(self):
-        #self.distance_away_from_target_t_plus_1 = self.distance_from_target()
-        #if (abs(self.state[0]  - self.territory_coordinates[0]) <= self.r and abs(self.state[1] - self.territory_coordinates[1]) <= self.r):
-        #    r = 0
-        #else:
-        #    r = self.distance_away_from_target_t - self.distance_away_from_target_t_plus_1
+        self.distance_away_from_target_t_plus_1 = self.distance_from_target()
+        if (abs(self.state[0]  - self.territory_coordinates[0]) <= self.r and abs(self.state[1] - self.territory_coordinates[1]) <= self.r):
+            r = 0
+        else:
+            r = self.distance_away_from_target_t - self.distance_away_from_target_t_plus_1
+        #print("reward", self.distance_away_from_target_t, '-', self.distance_away_from_target_t_plus_1, '=', r)
+        self.distance_away_from_target_t = self.distance_away_from_target_t_plus_1
+        # heading_desired = np.arctan( (self.territory_coordinates[1] - self.state[1]) / (self.territory_coordinates[0] - self.state[0]))
+        # heading_error = heading_desired - self.u_t
+        # r = 6*np.exp(-(heading_error/0.5)**2)-3
 
-        #self.distance_away_from_target_t = self.distance_away_from_target_t_plus_1
-        heading_desired = np.arctan( (self.territory_coordinates[1] - self.state[1]) / (self.territory_coordinates[0] - self.state[0]))
-        heading_error = heading_desired - self.u_t
-        r = 6*np.exp(-(heading_error/0.5)**2)-3
         self.update_reward_graph(r)
         return r
 
@@ -41,6 +42,7 @@ class TestController2(FQL):
         self.path = []
         self.path = [5,5] # set to self.state for first entry
         self.reward_track = []
+        self.distance_away_from_target_t = self.distance_from_target()
         pass
 
     def update_path(self, state):
@@ -54,5 +56,6 @@ class TestController2(FQL):
     def distance_from_target(self):
         distance_away_from_target = np.sqrt(
             (self.state[0] - self.territory_coordinates[0]) ** 2 + (self.state[1] - self.territory_coordinates[1]) ** 2)
+        #print(distance_away_from_target)
         return distance_away_from_target
 

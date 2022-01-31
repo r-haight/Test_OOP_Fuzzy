@@ -8,10 +8,10 @@ from TestController2 import TestController2
 state = [5, 5] # start position on the grid
 state_max = [50, 50] # max values of the grid [x,y]
 state_min = [-50, -50] # smallest value of the grid [x,y]
-num_of_mf = [19, 19] # breaking up the state space (grid in this case) into 29 membership functions
-action_space = [2.356125, -1.57075, -0.785375, 0, 0.785375, 1.57075, -2.356125]
+num_of_mf = [9, 9] # breaking up the state space (grid in this case) into 29 membership functions
+action_space = [0.785375, 2.356125, -1.57075, -0.785375, 0,  1.57075, -2.356125]
 
-selection = 0
+selection = 2
 
 if(selection == 0) :
     #FACL TEST
@@ -20,7 +20,7 @@ if(selection == 0) :
     #print out all the rule sets
     print("rules:")
     print(sharon.controller.rules)
-    for i in range(500):
+    for i in range(1500):
         sharon.run_one_epoch()
     print(' total num of successes:')
     print(sharon.success)
@@ -34,8 +34,11 @@ else:
     FQLcontroller = TestController2(state, state_max, state_min, num_of_mf, action_space)
     carole = Agent(FQLcontroller)
     print(carole.controller.rules)
-    for i in range(600):
+    for i in range(1500):
         carole.run_one_epoch()
+
+        #carole.print_path()
+
 
     print(' total num of successes:')
     print(carole.success)

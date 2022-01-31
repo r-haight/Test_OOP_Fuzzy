@@ -8,8 +8,8 @@ import abc
 
 class FACL:
     def __init__(self, stateMax : list, stateMin : list, numMF : list):
-        self.alpha = 0.4  # critic learning rate
-        self.beta = 0.1  # actor learning rate
+        self.alpha = 0.1  # critic learning rate
+        self.beta = 0.05  # actor learning rate
         self.gamma = 0.9  # discount factor
         self.L = np.prod(numMF)  # total number of rules
         self.zeta = np.zeros(self.L)  # critic
@@ -203,7 +203,6 @@ class FACL:
         self.v_t_1 = self.calculate_vt(self.phi_next) # self.phi[l] * self.zeta[l]
         #print('v_t_1')
         #print(self.v_t_1)
-
         # Step 8: calculate the temporal difference
         self.calculate_prediction_error()
         #print('temporal_difference')
@@ -220,10 +219,12 @@ class FACL:
     pass
 
     def updates_after_an_epoch(self):
-        self.sigma = 0.9999 * self.sigma
-        self.alpha = 0.9999 * self.alpha
-        self.beta = 0.9999 * self.beta
-
+        self.sigma = 0.999 * self.sigma
+        self.alpha = 0.999 * self.alpha
+        self.beta = 0.999 * self.beta
+        # self.sigma = self.sigma*10**(np.log10(0.1)/1000)
+        # self.alpha = self.alpha * 10 ** (np.log10(0.1) / 1000)
+        # self.beta = self.beta * 10 ** (np.log10(0.1) / 1000)
     def items_to_save(self):
         # TO DO
         # essentially we wanna make a list of trainable parameters after training so we can load them in later

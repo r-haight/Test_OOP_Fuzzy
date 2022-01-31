@@ -183,7 +183,7 @@ class FQL :
     def calculate_temporal_difference(self):
         self.temporal_difference = self.reward + self.gamma * self.Q_star - self.Q_function
         self.E = self.temporal_difference
-        #print("temp diff", self.temporal_difference)
+        #print("temp diff = ", self.reward, '+', self.gamma, "*", self.Q_star, '-', self.Q_function, '=', self.temporal_difference)
         pass
 
     @abc.abstractmethod

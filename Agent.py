@@ -22,8 +22,9 @@ class Agent:
             self.controller.iterate()
             if (self.controller.distance_from_target() < 1): ##change to a check capture / completion function later
                 self.success +=1
+                #print('success -- end')
                 break
-            self.controller.updates_after_an_epoch()
+        self.controller.updates_after_an_epoch()
         self.reward_total.append(self.reward_sum_for_a_single_epoch())
 
         #print(self.controller.path)
