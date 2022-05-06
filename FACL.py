@@ -4,14 +4,16 @@ import abc
 # This class is an abstract base class that implements the Fuzzy Actor Critic Algorithm
 # Actor controllers are meant to inherit all of it's properties and use polymorphism for the following methods:
 # get_reward, update_state
-# At the bottom is a function called "iterate" which does 1 iteration of the FACL algorithm
+# At the bottom is a function called "iterate" which does 1 iteration of the FACL algorithm (train or run)
 
+
+# Constructor
 class FACL:
     def __init__(self, stateMax : list, stateMin : list, numMF : list):
         self.alpha = 0.1  # critic learning rate
         self.beta = 0.05  # actor learning rate
         self.gamma = 0.9  # discount factor
-        self.L = np.prod(numMF)  # total number of rules
+        self.L = int(np.prod(numMF) ) # total number of rules
         self.zeta = np.zeros(self.L)  # critic
         self.omega = np.zeros(self.L)  # actor
         self.rules = np.zeros(self.L) #saving a space for rules
@@ -29,6 +31,9 @@ class FACL:
         self.phi_next = np.zeros(self.L) #gets calculated in the loop
         pass
 
+    # This function creates all the fuzzy rules given the state minimums, state maximums and number of MF
+    # For example, max may look like [50,50], min is [-50,-50] and the number of MF/divisions is [9,9]
+    # This means 9*9 rules are created, and -50 to 50 is divided into those 9 segements
     def rule_creation(self, state_max: list, state_min: list, number_of_mf: list) -> list:
         """
         :param state_max: f
@@ -81,6 +86,8 @@ class FACL:
             b[i] = state_min + gap_size * i
         return b
 
+    # A function used in "rule_creation", here we are creating all the different sets of rules that exists in terms
+    # of the 3 points on the triangle, read below
     def create_triangular_sets(self, num_of_mf: int, boundary_values: list) -> list:
         # example : if we have a boundary_value array, than we can create sets of 3 points for our triangular MFs
         # using output from the previous boundary_values would be:
@@ -92,67 +99,75 @@ class FACL:
             state_rules[i][2] = boundary_values[i+2]
         return state_rules
 
-
+    # Update the critic weights
     def update_zeta(self) -> None: #Critic
-        for l in range(self.L):
-            self.zeta[l] += self.alpha * self.temporal_difference * self.phi[l]
-            pass
+        # for l in range(self.L):
+        #     self.zeta[l] += self.alpha * self.temporal_difference * self.phi[l]
+        #     pass
+        self.zeta = self.zeta + self.alpha * np.multiply(self.temporal_difference,self.phi)
 
+    # Update the actor weights
     def update_omega(self) -> None: #Actor
-        for l in range(self.L):
-            self.omega[l] = self.omega[l] + self.beta * self.phi[l] * self.noise*self.temporal_difference
-            pass
+        # for l in range(self.L):
+        #     self.omega[l] = self.omega[l] + self.beta * self.phi[l] * self.noise*self.temporal_difference
+        #     pass
+        self.omega = self.omega + self.beta * self.noise * np.multiply(self.temporal_difference,self.phi)
         pass
 
+    # Calculate phi, which is the firing strength for the rules at a given iteration
     def update_phi(self) -> None: # finds the rules that get fired
         rules_firing = [[0] * len(self.state) for _ in range(self.L)]  # np.zeros((self.L, len(state)))
         product_of_rule = [1] * self.L
         for l in range(self.L):
             for i in range(0, len(self.state)):
                 rules_firing[l][i] = self.mu(self.state[i], [self.rules[l][i][0], self.rules[l][i][1], self.rules[l][i][2]])
-                product_of_rule[l] = product_of_rule[l] * rules_firing[l][i] # gets the product of all the states that went thru the fuzzy MF for a specific rule
-
+                if(rules_firing[l][i] != 0 ):
+                    product_of_rule[l] = product_of_rule[l] * rules_firing[l][i] # gets the product of all the states that went thru the fuzzy MF for a specific rule
+                else:
+                    product_of_rule[l] = 0
         # Sum all the array values of the products for all rules
         #sum_of_rules_fired = sum(product_of_rule)
 
         # Calculate phi^l
-        phi = np.zeros(self.L)
-        for l in range(self.L):
-            phi[l] = product_of_rule[l] #/ sum_of_rules_fired
+        # phi = np.zeros(self.L)
+        # for l in range(self.L):
+        #     phi[l] = product_of_rule[l] #/ sum_of_rules_fired
 
+        phi = product_of_rule.copy() # divided by the sum of rules fired
+                                     # but since the mf are triangular
+                                     # the sum is always 1
+        product_of_rule = None # delete the array just in case
         return phi
         pass
 
+    # Calculate the value function
     def calculate_vt(self, phi): #Value Function
-        v_t = 0.0
-        for l in range(self.L):
-            v_t = v_t + phi[l] * self.zeta[l]
-
+        # v_t = 0.0
+        # for l in range(self.L):
+        #     v_t = v_t + phi[l] * self.zeta[l]
+        v_t = np.sum(np.multiply(phi,self.zeta))
         return v_t
 
+    # Calculate the action
     def calculate_ut(self) -> None: # Calculates u_t, the action
-        self.u_t = 0.0
-        for l in range(self.L):
-            self.u_t = self.u_t + self.phi[l] * self.omega[l]
-        self.u_t = self.u_t + self.noise #add noise to explore
+        self.u_t = np.sum(np.multiply(self.phi,self.omega))+self.noise
 
-        # if(self.u_t>np.pi):
-        #     self.u_t = np.pi
-        # elif(self.u_t < -np.pi) :
-        #     self.u_t = -np.pi
-        # pass
-
+    # calculate the temporal difference / prediction error
     def calculate_prediction_error(self):
         self.temporal_difference = self.reward + self.gamma * self.v_t_1 - self.v_t
 
+    # Method is abstract for a controller class to overwrite it
     @abc.abstractmethod
     def update_state(self):
         pass
 
+    # Method is abstract for a controller class to overwrite it
     @abc.abstractmethod
     def get_reward(self):
         pass
 
+    # Triangular membership function mu
+    # Used to determine which rules fire
     def mu(self, state: float, rule: list): # This is the triangular membership function
         #print(state)
         #print(rule)
@@ -167,10 +182,13 @@ class FACL:
         #print(f)
         return f
 
+    # Noise generation for exploration
     def generate_noise(self):
         self.noise = np.random.normal(0, self.sigma)
 
-    def iterate(self) :
+    # This function is used for a single full iteration during TRAINING
+    # Print statements commented out for debugging
+    def iterate_train(self) :
         #print statements were added for debugging
         self.generate_noise()
         #print('noise : ', self.noise)
@@ -218,6 +236,8 @@ class FACL:
         self.phi = self.phi_next # the rules that fire for the next iteration
     pass
 
+    # After 1 epoch of training, the standard deviation of the noise, actor and critic learning rates
+    # are decreased a little
     def updates_after_an_epoch(self):
         self.sigma = 0.999 * self.sigma
         self.alpha = 0.999 * self.alpha
@@ -225,11 +245,17 @@ class FACL:
         # self.sigma = self.sigma*10**(np.log10(0.1)/1000)
         # self.alpha = self.alpha * 10 ** (np.log10(0.1) / 1000)
         # self.beta = self.beta * 10 ** (np.log10(0.1) / 1000)
-    def items_to_save(self):
-        # TO DO
-        # essentially we wanna make a list of trainable parameters after training so we can load them in later
+
+    # This function is used for a single full iteration during a formal run
+    # No actor critic updates are done since it is not training
+    def iterate_run(self):
+        #generate noise
+        #select action
+        self.calculate_ut()
+        #update states
+        self.update_state()
+        self.phi_next = self.update_phi()
+        self.phi = self.phi_next
+
         pass
-
-
-
 

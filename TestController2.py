@@ -1,6 +1,6 @@
 from FQL import FQL
 import numpy as np
-
+# The class TestController2
 class TestController2(FQL):
 
     def __init__(self, state, max, min, num_mf, action):
@@ -58,4 +58,17 @@ class TestController2(FQL):
             (self.state[0] - self.territory_coordinates[0]) ** 2 + (self.state[1] - self.territory_coordinates[1]) ** 2)
         #print(distance_away_from_target)
         return distance_away_from_target
+    def save(self):
+        # save the q table that was generated
+        np.savetxt('q_table.txt', self.q_table)
+        # save the fuzzy system information so we can regenerate it later
+        # savetxt('fuzzy_info.txt',self.fuzzy_info)
+        np.savetxt("fuzzy_info.txt",self.fuzzy_info_max, fmt='%1.3f', newline="\n")
+        with open("fuzzy_info.txt", "a") as f:
+             np.savetxt(f, self.fuzzy_info_min, fmt='%1.3f', newline="\n")
+             np.savetxt(f, self.fuzzy_info_nmf,fmt='%1.3f', newline="\n")
+
+        pass
+    def load(self):
+        self.q_table = np.loadtxt('q_table.txt', delimiter=',')
 

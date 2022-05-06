@@ -2,10 +2,11 @@ import numpy as np
 import matplotlib as plt
 import abc
 import random
-
-# STILL IN THE WORKS
-# NOT TESTED NOR COMPLETED
-
+import abc
+# This class is an abstract base class that implements the Fuzzy Q Learning Algorithm
+# Actor controllers are meant to inherit all of it's properties and use polymorphism for the following methods:
+# get_reward, update_state
+# At the bottom is a function called "iterate" which does 1 iteration of the FACL algorithm (train or run)
 class FQL :
     def __init__(self, actions : list, statemax : list, statemin : list, numMF : list):
 
@@ -119,15 +120,14 @@ class FQL :
         #         self.action[l] = self.action_space[max_val_index]
         n = random.random()
         if (n > self.greedy_factor):
+            self.action = random.choices(self.action_space, k = self.L)
             for l in range(self.L):
-                self.action[l] = random.choice(self.action_space)
                 self.index_of_selected_action[l] = self.action_space.index(self.action[l])
         else:
+            self.index_of_selected_action = np.argmax(self.q_table, axis=1)
             for l in range(self.L):
-                q_values_for_rule = self.q_table[l][:]
-                max_val_index = np.argmax(q_values_for_rule)
-                self.index_of_selected_action[l] = max_val_index
-                self.action[l] = self.action_space[max_val_index]
+                 self.action[l] = self.action_space[self.index_of_selected_action[l]]
+
 
 
 
@@ -143,6 +143,8 @@ class FQL :
         for l in range(self.L):
             Q = Q + self.phi_next[l] * max(self.q_table[l][:])
         self.Q_star = Q
+        # max_q_vals = np.argmax(self.q_table,axis=1)
+        # self.Q_star=np.sum(np.multiply(max_q_vals,self.phi_next))
 
     def update_q_table(self):
         #print("learn rate",self.alpha)
@@ -152,49 +154,65 @@ class FQL :
         for l in range(self.L):
             self.q_table[l][int(self.index_of_selected_action[l])] = self.q_table[l][int(self.index_of_selected_action[l])] + self.alpha * self.E * self.phi[l]
 
-
+    # Calculate phi, which is the firing strength for the rules at a given iteration
     def update_phi(self) -> None:
+        # rules_firing = [[0] * len(self.state) for _ in range(self.L)]  # np.zeros((self.L, len(state)))
+        # product_of_rule = [0] * self.L
+        # for l in range(self.L):
+        #     product_of_rule[l] = 1
+        #     for i in range(0, len(self.state)):
+        #         rules_firing[l][i] = self.mu(self.state[i], [self.rules[l][i][0], self.rules[l][i][1], self.rules[l][i][2]])
+        #         product_of_rule[l] = product_of_rule[l] * rules_firing[l][i]
+        #
+        # # Sum all the array values of the products for all rules
+        # sum_of_rules_fired = sum(product_of_rule)
         rules_firing = [[0] * len(self.state) for _ in range(self.L)]  # np.zeros((self.L, len(state)))
-        product_of_rule = [0] * self.L
+        product_of_rule = [1] * self.L
         for l in range(self.L):
-            product_of_rule[l] = 1
             for i in range(0, len(self.state)):
-                rules_firing[l][i] = self.mu(self.state[i], [self.rules[l][i][0], self.rules[l][i][1], self.rules[l][i][2]])
-                product_of_rule[l] = product_of_rule[l] * rules_firing[l][i]
-
-        # Sum all the array values of the products for all rules
-        sum_of_rules_fired = sum(product_of_rule)
-
+                rules_firing[l][i] = self.mu(self.state[i],
+                                             [self.rules[l][i][0], self.rules[l][i][1], self.rules[l][i][2]])
+                if (rules_firing[l][i] != 0):
+                    product_of_rule[l] = product_of_rule[l] * rules_firing[l][
+                        i]  # gets the product of all the states that went thru the fuzzy MF for a specific rule
+                else:
+                    product_of_rule[l] = 0
         # Calculate phi^l
-        phi = np.zeros(self.L)
-        for l in range(self.L):
-            phi[l] = product_of_rule[l] / sum_of_rules_fired
-
+        # phi = np.zeros(self.L)
+        # for l in range(self.L):
+        #     phi[l] = product_of_rule[l] / sum_of_rules_fired
+        phi = product_of_rule.copy()
         return phi
         pass
 
+    # Calculate the action to take
     def calculate_ut(self, phi):
-        u_t = float(0)
-        for l in range(self.L):
-            u_t = u_t + phi[l]*self.action[l]
-        self.u_t = u_t
+        # u_t = float(0)
+        # for l in range(self.L):
+        #     u_t = u_t + phi[l]*self.action[l]
+        # self.u_t = u_t
+        self.u_t = np.sum(np.multiply(phi,self.action))
         pass
 
+    # Calculate the temporal difference for the iteration
     def calculate_temporal_difference(self):
         self.temporal_difference = self.reward + self.gamma * self.Q_star - self.Q_function
         self.E = self.temporal_difference
         #print("temp diff = ", self.reward, '+', self.gamma, "*", self.Q_star, '-', self.Q_function, '=', self.temporal_difference)
         pass
 
+    # Method is abstract for a controller class to overwrite it
     @abc.abstractmethod
     def update_state(self):
         pass
 
+    # Method is abstract for a controller class to overwrite it
     @abc.abstractmethod
     def get_reward(self):
         pass
 
-    def iterate(self):
+    # Iteration for TRAINING
+    def iterate_train(self):
         # STEP 1: select the action of each rule
         self.select_action()
 
@@ -223,10 +241,25 @@ class FQL :
         #STEP 9: update the q table
         self.update_q_table()
 
-
+    # After an epoch of training, the greedy factor and learning rate is decreased
     def updates_after_an_epoch(self):
         self.alpha = 0.9999 * self.alpha
         if(self.greedy_factor > 0.99):
             pass
         else:
             self.greedy_factor = 1.001*self.greedy_factor
+
+    # Iteration for RUNNING (not training)
+    def iterate_run(self):
+        # STEP 1: select the action of each rule
+        self.select_action()
+
+        # STEP 2: calculate phi
+        self.phi = self.update_phi()
+
+        # STEP 3: calulate the output of the fuzzy system, U_t
+        self.calculate_ut(self.phi)
+
+        # STEP 4 : update the state
+        self.update_state()
+        pass

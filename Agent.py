@@ -3,12 +3,17 @@ import FACL
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-# Maybe this class should have been named Agent but anyways, it exists so that we can plug a low level controller (FACL or FQL) into the agent
-# Its purpose is to
+
+# This is an agent class that is used to interact with the controller that gets created
+# This class takes care of things like:
+# - running training epochs and games
+# - And plotting things like reward graphs and agent paths
+
 class Agent:
     def __init__(self, controller):
         # default values
         self.training_iterations_max = 45 # number of iteration in 1 epoch
+        self.game_iterations_max = 45
         self.controller = controller # this is the controller (FACL or FQL) that gets passed into the actor object
         self.success = 0 # this will count the number of sucesses (to be taken out later)
         self.figure_number =1
@@ -19,7 +24,7 @@ class Agent:
         self.controller.reset()
         # This function calls the controller iterator
         for i in range(self.training_iterations_max):
-            self.controller.iterate()
+            self.controller.iterate_train()
             if (self.controller.distance_from_target() < 1): ##change to a check capture / completion function later
                 self.success +=1
                 #print('success -- end')
@@ -27,14 +32,27 @@ class Agent:
         self.controller.updates_after_an_epoch()
         self.reward_total.append(self.reward_sum_for_a_single_epoch())
 
+    def run_one_game(self):  # runs a single epoch of training
+        # Reset the game
+        self.controller.reset()
+        # This function calls the controller iterator
+        for i in range(self.game_iterations_max):
+            self.controller.iterate_run()
+            if (
+                    self.controller.distance_from_target() < 1):  ##change to a check capture / completion function later
+                self.success += 1
+                # print('success -- end')
+                break
+        self.reward_total.append(self.reward_sum_for_a_single_epoch())
+
         #print(self.controller.path)
 
     def save_epoch_training_info(self):
-        # finish later
         # gonna call a controller function so that we know what to save
+        self.controller.save()
         pass
 
-
+    # plots the path of the agent taken
     def print_path(self): # this function prints the path of the agent taken
         x=[0]*(len(self.controller.path)-1)
         y=[0]*(len(self.controller.path)-1)
@@ -52,11 +70,14 @@ class Agent:
         plt.show()
         pass
 
+    # called during training only
+    # sums all the rewards obtained in 1 epoch of training
     def reward_sum_for_a_single_epoch(self):
         total_rewards = sum(self.controller.reward_track)
         #print(total_rewards)
         return total_rewards
 
+    # prints a plot of the rewards obtained during each epoch
     def print_reward_graph(self):
         fig, ax = plt.subplots()
         ax.plot(self.reward_total)
